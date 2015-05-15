@@ -22,4 +22,7 @@ class Discrimination(object):
         self.m_hdfOper = hdfOper
     
     def IsContamination(self):
+        Aze_Zen=self.m_hdfOper.ReadHdfDataset(self.EVCAziZenGroup, self.EVCAziZenDataset)
+        Lon_Lat=self.m_hdfOper.ReadHdfDataset(self.EVCLonLatGoup, self.EVCLonLatDataset)
+        
         return True
