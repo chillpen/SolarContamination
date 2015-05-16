@@ -9,7 +9,7 @@ class BlackBodyAnalyse(object):
     m_FilePath = ''
     m_GoupPath = '/Calibration'
     m_DatasetPath = 'Blackbody_View'
-    m_hdfOper = hdfOper.HdfOperator()
+    _hdfOper = hdfOper.HdfOperator()
     m_Discrim = discrimi.Discrimination()
     
     def __init__(self):
@@ -20,11 +20,11 @@ class BlackBodyAnalyse(object):
         
     def OpenFile(self,filePath):
         self.m_FilePath = filePath
-        self.m_hdfOper.SetFile(filePath)
+        self._hdfOper.SetFile(filePath)
 
     
     def ReadData(self):
-        return self.m_hdfOper.ReadHdfDataset(self.m_GoupPath, self.m_DatasetPath)
+        return self._hdfOper.ReadHdfDataset(self.m_GoupPath, self.m_DatasetPath)
               
    
     '''def PlotCurve(self,hdfdataset,chn,detector):
@@ -37,8 +37,8 @@ class BlackBodyAnalyse(object):
         plt.show()
         
     def Correction(self,dataset,chn,detector):
-        if self.m_Discrim.IsContamination()!=True:
-            return
+        '''if self.m_Discrim.IsContamination()!=True:
+            return'''
         curveData = dataset[detector,:,chn]
         dataSize = np.size(curveData)
         mean = np.mean(curveData)
@@ -48,9 +48,23 @@ class BlackBodyAnalyse(object):
         
         print(diffData)
         '''self.PlotCurve(dataset,chn,detector)'''
+ 
+        self.Smooth(curveData)
         self.PlotCurve(curveData)
         
-  
+    def Smooth(self,data):
+        dataSize = np.size(data)
+        step  = 50
+        
+        for i in range(step,dataSize-50):
+            tempData = data[i-50:i+50]
+            mean = np.mean(tempData)
+            difLimit = mean*0.005
+            if np.abs(data[i]- mean) >difLimit :
+                data[i] = mean
+        
+        print(data)
+                
         
 def main():
     bba = BlackBodyAnalyse()
