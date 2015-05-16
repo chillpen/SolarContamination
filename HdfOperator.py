@@ -9,6 +9,9 @@ class HdfOperator(object):
         '''
         Constructor
         '''
+    def Close(self):
+        self.m_hdfHandle.close()
+        
     def SetFile(self,filename):
         self.m_hdfHandle = h5py.File(filename,'r')
         

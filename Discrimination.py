@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import HdfOperator as hdfOper
-
+import os
 
 
 
@@ -12,7 +12,8 @@ class Enum(set):
             return name
         raise AttributeError
  
-ContaminationType = Enum(["Enter", "Leave", "MId", "Null"])
+EnumContaminationType = Enum(["Enter", "Leave", "MId", "Null"])
+
 
 
 class Discrimination(object):
@@ -22,6 +23,7 @@ class Discrimination(object):
     EVCLonLatGoup = '/Geolocation'
     EVCLonLatDataset = 'EVC_Lon_Lat'
     _hdfOper = hdfOper.HdfOperator()
+    _ContaminationType = EnumContaminationType.Null
     
     
     def __init__(self):
@@ -32,15 +34,37 @@ class Discrimination(object):
     def SetCurrentHdfOper(self,hdfOper):
         self._hdfOper = hdfOper
     
-    def IsContamination(self):
+    def IsContamination(self,Data):
+        Aze_Zen=self._hdfOper.ReadHdfDataset(self.EVCAziZenGroup, self.EVCAziZenDataset)
+        Lon_Lat=self._hdfOper.ReadHdfDataset(self.EVCLonLatGoup, self.EVCLonLatDataset)
+        zenith = Aze_Zen[:,1]*0.01
+        lon = Lon_Lat[:,0]
+        lat = Lon_Lat[:,1]
+        isNorthern = self.IsNorthernHemisphere(lat)
+
+        if isNorthern :
+            dangerData = np.where((zenith>85) & (zenith <118))
+        else:
+            dangerData = np.where((zenith>93) & (zenith <123))
         
-        return True
+        if not np.size(dangerData)  > 0 :
+            return False
+        
+        smoothData = self.Smooth(Data)
+        stdValue=np.std(smoothData)
+        
+        if (isNorthern & (stdValue>0.4)) | (stdValue>0.7) :
+            return True
+                       
+        return False
+            
+        
     
     def Contamination(self,Data):
         Aze_Zen=self._hdfOper.ReadHdfDataset(self.EVCAziZenGroup, self.EVCAziZenDataset)
         Lon_Lat=self._hdfOper.ReadHdfDataset(self.EVCLonLatGoup, self.EVCLonLatDataset)
         
-        zenith = Aze_Zen[:,1]
+        zenith = Aze_Zen[:,1]*0.01
         lon = Lon_Lat[:,0]
         lat = Lon_Lat[:,1]
         
@@ -50,38 +74,121 @@ class Discrimination(object):
         
         danger = False
         
-        '''IsNorthern = self.IsNorthernHemisphere(lat)'''
-        for i in range(dataSize):
-            if lat[i]>0 :
-                if zenith>75 & zenith<130:
-                    danger = True
-            else :
-                if zenith>90 & zenith<140:
-                    danger = True
+        IsNorthern = self.IsNorthernHemisphere(lat)
         
         
-        if danger :
+        if not self.IsInLargeDiscrimRegion(zenith, IsNorthern):
+            return
+        
+    
+        dangerData = self.GetDangerData(Data,lat,zenith,IsNorthern)
+
+
+
+
+                            
+    def IsInLargeDiscrimRegion(self,zenith,isNorthern):
+        result = False
+        discrimRegion = []
+        if isNorthern :
+            discrimRegion = np.where((zenith>75) & (zenith <130))              
+        else:
+            discrimRegion = np.where((zenith>90) & (zenith <140))
             
-             
+        if np.size(discrimRegion) >0 :
+            result = True
+            
+        return result
+    
+                    
+            
+    def GetDangerData(self,Data,lat,zenith,isNorthern):
+        dangerData = []
+        dataSize = np.size(zenith)
+        enterPos =0
+        leavePos =1799
         
+        if isNorthern :
+            dangerData = np.where((zenith>85) & (zenith <118))
+        else:
+            dangerData = np.where((zenith>93) & (zenith <123))
+        
+        if not np.size(dangerData)  > 0 :
+            return dangerData
+        
+        print(dangerData)
+        
+        smoothData = self.Smooth(Data)
+        stdValue=np.std(smoothData)
+        stdArray = []
+        
+        if (isNorthern & (stdValue>0.4)) | (stdValue>0.7) :
+            enterPos = np.min(dangerData)
+            leavePos = np.max(dangerData)
+            
+            print(enterPos)
+            print(leavePos)
+            
+            for i in range(100,dataSize-100,100):
+                stdTmp = np.std(smoothData[i-99:i+99])
+                stdArray.append(stdTmp)
+                
+            restd=((stdArray-np.mean(stdArray))/np.std(stdArray))
+            
+            std_1800=np.zeros(1800)
+            
+            for j in range(100,dataSize-100,100):
+                std_1800[j] = restd[i/100]
+                
+            difIndex = np.where(np.abs(std_1800)>0.7)
+
+            
+        print(stdArray)  
+        return dangerData
 
         
+    def Smooth(self,data):
+        dataSize = np.size(data)
+        step  = 50
+        result = data[:]
+        for i in range(step,dataSize-50):
+            tempData = result[i-50:i+50]
+            mean = np.mean(tempData)
+            difLimit = mean*0.005
+            if np.abs(result[i]- mean) >difLimit :
+                result[i] = mean
+        return result
+        
     def IsNorthernHemisphere(self,latArray): 
-        dataSize = np.size(latArray)
-        for i in range(dataSize):
-            if latArray[i]>0 :
-                return True
-        return False
+        isNorthern = False
+        region = np.where(latArray>0)
+        if (np.size(region) / np.size(latArray)) > 0.9 :
+            isNorthern = True
+          
+        return isNorthern
                 
         
 
         
 def main():
     hdfop = hdfOper.HdfOperator()
-    hdfop.SetFile('C:\\Data\\virr\\20150429_0504\\FY3C_VIRRX_GBAL_L1_20150428_0615_OBCXX_MS.HDF')
+    hdfop.SetFile('k:\\20140620\\FY3C_VIRRX_GBAL_L1_20140620_1435_OBCXX_MS.HDF')
+    bbdataset =hdfop.ReadHdfDataset('/Calibration', 'Blackbody_View')
     disc = Discrimination()
     disc.SetCurrentHdfOper(hdfop)
-    disc.Contamination()
+    disc.Contamination(bbdataset[2,:,3])
+    '''path = 'K:\\20140620'
+    files = os.listdir(path)
+    hdfop = hdfOper.HdfOperator()
+    disc = Discrimination()
+    disc.SetCurrentHdfOper(hdfop)
+    contArray = []
+    for file in files:
+        hdfop.SetFile(path+'\\'+file)
+        bbdataset = hdfop.ReadHdfDataset('/Calibration', 'Blackbody_View')
+        if disc.IsContamination(bbdataset[2,:,3]):
+            contArray.append(file)
+    print(contArray) '''
 
     
 

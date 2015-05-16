@@ -10,7 +10,7 @@ class BlackBodyAnalyse(object):
     m_GoupPath = '/Calibration'
     m_DatasetPath = 'Blackbody_View'
     _hdfOper = hdfOper.HdfOperator()
-    m_Discrim = discrimi.Discrimination()
+    _Discrim = discrimi.Discrimination()
     
     def __init__(self):
         '''
@@ -37,33 +37,15 @@ class BlackBodyAnalyse(object):
         plt.show()
         
     def Correction(self,dataset,chn,detector):
-        '''if self.m_Discrim.IsContamination()!=True:
+        '''if self._Discrim.IsContamination()!=True:
             return'''
         curveData = dataset[detector,:,chn]
         dataSize = np.size(curveData)
-        mean = np.mean(curveData)
-        meanArray = np.ones(dataSize)*mean  
-        diffData = curveData - meanArray
-        diffData = diffData*diffData
-        
-        print(diffData)
-        '''self.PlotCurve(dataset,chn,detector)'''
  
-        self.Smooth(curveData)
+        self._Discrim.Contamination(curveData)
         self.PlotCurve(curveData)
         
-    def Smooth(self,data):
-        dataSize = np.size(data)
-        step  = 50
-        
-        for i in range(step,dataSize-50):
-            tempData = data[i-50:i+50]
-            mean = np.mean(tempData)
-            difLimit = mean*0.005
-            if np.abs(data[i]- mean) >difLimit :
-                data[i] = mean
-        
-        print(data)
+
                 
         
 def main():
