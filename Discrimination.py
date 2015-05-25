@@ -141,11 +141,13 @@ class Discrimination(object):
                 std_1800[j] = restd[i/100]
                 
             difIndex = np.where(np.abs(std_1800)>0.7)
-
+            
+            
             
         print(stdArray)  
         return dangerData
-
+    
+  
         
     def Smooth(self,data):
         dataSize = np.size(data)
