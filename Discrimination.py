@@ -141,7 +141,18 @@ class Discrimination(object):
                 std_1800[j] = restd[i/100]
                 
             difIndex = np.where(np.abs(std_1800)>0.7)
-            
+            '''确定污染区的起始位置'''
+            ''' if (a==1 &b==1800)
+                nz_l=1;nz_r=1800;  
+             elseif (a==1 & b<1800)
+                %nz_l=1;nz_r=max(kk)+15;  
+                nz_l=1;nz_r=max(kk)+99;
+             elseif (a>1 & b==1800);
+                %nz_l=min(kk)-15;nz_r=1800;
+                 nz_l=min(kk)-99;nz_r=1800;
+             else
+                nz_l=0;nz_r=0;
+             end'''
             
             
         print(stdArray)  
