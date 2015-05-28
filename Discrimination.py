@@ -12,7 +12,7 @@ class Enum(set):
             return name
         raise AttributeError
  
-EnumContaminationType = Enum(["Enter", "Leave", "MId", "Null"])
+EnumContaminationType = Enum(["Enter", "Leave", "Mid", "Null"])
 
 
 
@@ -141,10 +141,17 @@ class Discrimination(object):
                 std_1800[j] = restd[i/100]
                 
             difIndex = np.where(np.abs(std_1800)>0.7)
+            
             '''确定污染区的起始位置'''
-            ''' if (a==1 &b==1800)
-                nz_l=1;nz_r=1800;  
-             elseif (a==1 & b<1800)
+            if enterPos==0 & enterPos==1799:
+                self._ContaminationType = EnumContaminationType.Mid
+            elif enterPos==0 & enterPos<1799:
+                self._ContaminationType = EnumContaminationType.Enter
+            elif enterPos>0 & enterPos==1799:
+                self._ContaminationType = EnumContaminationType.Leave
+                
+            '''   nz_l=1;nz_r=1800;  
+            elseif (a==1 & b<1800)
                 %nz_l=1;nz_r=max(kk)+15;  
                 nz_l=1;nz_r=max(kk)+99;
              elseif (a>1 & b==1800);
