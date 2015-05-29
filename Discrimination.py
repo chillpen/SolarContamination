@@ -78,11 +78,12 @@ class Discrimination(object):
         
         
         if not self.IsInLargeDiscrimRegion(zenith, IsNorthern):
-            return
+            return [self._ContaminationTyp,[0,0]]
         
     
-        dangerData = self.GetDangerData(Data,lat,zenith,IsNorthern)
-
+        discriminationArea = self.GetDiscriminationArea(Data,lat,zenith,IsNorthern)
+        
+        return [self._ContaminationType,discriminationArea]
 
 
 
@@ -102,11 +103,11 @@ class Discrimination(object):
     
                     
             
-    def GetDangerData(self,Data,lat,zenith,isNorthern):
+    def GetDiscriminationArea(self,Data,lat,zenith,isNorthern):
         dangerData = []
         dataSize = np.size(zenith)
         enterPos =0
-        leavePos =1799
+        leavePos =0
         
         if isNorthern :
             dangerData = np.where((zenith>85) & (zenith <118))
@@ -114,23 +115,22 @@ class Discrimination(object):
             dangerData = np.where((zenith>93) & (zenith <123))
         
         if not np.size(dangerData)  > 0 :
-            return dangerData
+            return [0,0]
         
-        print(dangerData)
+      
         
         smoothData = self.Smooth(Data)
         stdValue=np.std(smoothData)
         stdArray = []
-        
-        if (isNorthern & (stdValue>0.4)) | (stdValue>0.7) :
+        result = [enterPos,leavePos]  
+        if (isNorthern & (stdValue>0.4)) | ((not isNorthern) &(stdValue>0.7)) :
             enterPos = np.min(dangerData)
             leavePos = np.max(dangerData)
             
-            print(enterPos)
-            print(leavePos)
+
             
             for i in range(100,dataSize-100,100):
-                stdTmp = np.std(smoothData[i-99:i+99])
+                stdTmp = np.std(smoothData[i-100:i+99])
                 stdArray.append(stdTmp)
                 
             restd=((stdArray-np.mean(stdArray))/np.std(stdArray))
@@ -138,18 +138,23 @@ class Discrimination(object):
             std_1800=np.zeros(1800)
             
             for j in range(100,dataSize-100,100):
-                std_1800[j] = restd[i/100]
+                std_1800[j] = restd[j/100-1]
                 
             difIndex = np.where(np.abs(std_1800)>0.7)
-            
-            '''确定污染区的起始位置'''
-            if enterPos==0 & enterPos==1799:
-                self._ContaminationType = EnumContaminationType.Mid
-            elif enterPos==0 & enterPos<1799:
-                self._ContaminationType = EnumContaminationType.Enter
-            elif enterPos>0 & enterPos==1799:
-                self._ContaminationType = EnumContaminationType.Leave
                 
+            if (enterPos==0) & (leavePos==1799):
+                self._ContaminationType = EnumContaminationType.Mid
+                result = [0,1799]
+            elif (enterPos==0) & (leavePos<1799):
+                self._ContaminationType = EnumContaminationType.Enter
+                result = [0,np.max(difIndex)+99]
+               
+            elif (enterPos>0) & (leavePos==1799):
+                self._ContaminationType = EnumContaminationType.Leave
+                result=[np.min(difIndex)-99,1799]
+            else :
+                self._ContaminationType =EnumContaminationType.Null
+                '''result = [np.min(difIndex)-99,1799]'''
             '''   nz_l=1;nz_r=1800;  
             elseif (a==1 & b<1800)
                 %nz_l=1;nz_r=max(kk)+15;  
@@ -160,10 +165,8 @@ class Discrimination(object):
              else
                 nz_l=0;nz_r=0;
              end'''
-            
-            
-        print(stdArray)  
-        return dangerData
+
+        return result
     
   
         
@@ -171,7 +174,7 @@ class Discrimination(object):
         dataSize = np.size(data)
         step  = 50
         result = data[:]
-        for i in range(step,dataSize-50):
+        for i in range(step,dataSize-50,1):
             tempData = result[i-50:i+50]
             mean = np.mean(tempData)
             difLimit = mean*0.005
@@ -192,11 +195,13 @@ class Discrimination(object):
         
 def main():
     hdfop = hdfOper.HdfOperator()
-    hdfop.SetFile('k:\\20140620\\FY3C_VIRRX_GBAL_L1_20140620_1435_OBCXX_MS.HDF')
+    hdfop.SetFile('C:\\Data\\virr\\FY3C_VIRRX_GBAL_L1_20140620_1335_OBCXX_MS.HDF')
     bbdataset =hdfop.ReadHdfDataset('/Calibration', 'Blackbody_View')
     disc = Discrimination()
     disc.SetCurrentHdfOper(hdfop)
-    disc.Contamination(bbdataset[2,:,3])
+    contam = disc.Contamination(bbdataset[2,:,3])
+    
+    print(contam)
     '''path = 'K:\\20140620'
     files = os.listdir(path)
     hdfop = hdfOper.HdfOperator()
